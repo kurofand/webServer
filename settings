@@ -1,0 +1,3 @@
+#settings file
+server root=~/serverRoot
+index file=index.html
