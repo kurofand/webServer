@@ -3,13 +3,15 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <iostream>
-//#include <string.h>
 #include <sstream>
 #include <fstream>
 
 #include <regex>
+
+#include <ctime>
 
 #define port 80
 
@@ -33,9 +35,15 @@ Server::Server()
 					this->serverRoot=returnVal(line);
 				if(line.find("index file")!=std::string::npos)
 					this->indexFile=returnVal(line);
+				if(line.find("logging")!=std::string::npos)
+					this->isLog=returnVal(line)=="1";
+				if(line.find("log directory")!=std::string::npos)
+					this->logFile=returnVal(line)+"/log";
 			}
 		settingsFile.close();
 	}
+	else
+		std::cout<<"Error with reading settings file"<<std::endl;
 }
 
 bool Server::start()
@@ -47,14 +55,28 @@ bool Server::start()
 	stSockAddr.sin_addr.s_addr=htonl(INADDR_ANY);
 	if(bind(iSocket, (struct sockaddr*) &stSockAddr, sizeof(stSockAddr))==-1)
 	{
-		std::cout<<"bind error"<<std::endl;
+		if(this->isLog)
+			this->writeToLog("Bind error. Retrying to start in 5 seconds...");
+		else
+			std::cout<<"bind error"<<std::endl;
+		this->status=bindError;
 		return false;
 	}
 	if(listen(iSocket, 5)==-1)
 	{
-		std::cout<<"listen error"<<std::endl;
+		if(this->isLog)
+			this->writeToLog("Listen error");
+		else
+			std::cout<<"listen error"<<std::endl;
+		this->status=listenError;
 		return false;
 	}
+	if(this->isLog)
+		writeToLog("Successfully started");
+	else
+		std::cout<<"Successfully started"<<std::endl;
+	this->status=runned;
+	return true;
 }
 
 void Server::run()
@@ -68,15 +90,18 @@ void Server::run()
 		char buf[bufSize];
 		std::string request;
 		ssize_t result=recv(con, &buf, bufSize, NULL);
-		std::cout<<buf<<std::endl;
 		request.append(buf);
 		std::string fileName=request.substr(request.find("/"), request.find("HTTP")-request.find("/")-1);
 		if((fileName=="/")&&(this->indexFile!=""))
 			fileName+=this->indexFile;
 		if(this->serverRoot!="")
 			fileName=serverRoot+fileName;
+		std::string log="Received \"";
+		log+=request.substr(0, request.find(" HTTP"));
+		log+="\" request from ";
+		log+=inet_ntoa(cliAddr.sin_addr);
+		this->writeToLog(log.c_str());
 		std::stringstream response;
-		//response<<"HTTP/1.1 200 OK\r\n\r\n";
 		response<<this->prepareAnswer(&fileName);
 		write(con, response.str().c_str(), response.str().length());
 		close(con);
@@ -94,10 +119,25 @@ std::string Server::prepareAnswer(std::string *fileName)
 		std::string line;
 		while(getline(file, line))
 			response.append(line+"\n");
+		file.close();
 	}
 	else
 		response="HTTP/1.1 404 Not Found\r\n\r\n";
 	return response;
+}
+
+void Server::writeToLog(const char* line)
+{
+	std::ofstream file;
+	file.open(this->logFile, std::ofstream::out|std::ofstream::app);
+	if(file.is_open())
+	{
+		std::time_t currTime=std::time(nullptr);
+		char bstr[25];
+		std::strftime(bstr, 25, "%a %b %d %H:%M:%S %Y", std::localtime(&currTime));
+		file<<bstr<<": "<<line<<std::endl;
+		file.close();
+	}
 }
 
 bool Server::stop()
