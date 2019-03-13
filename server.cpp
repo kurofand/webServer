@@ -9,7 +9,7 @@
 #include <sstream>
 #include <fstream>
 
-#include <regex>
+#include <cstring>
 
 #include <ctime>
 
@@ -59,7 +59,7 @@ bool Server::start()
 			this->writeToLog("Bind error. Retrying to start in 5 seconds...");
 		else
 			std::cout<<"bind error"<<std::endl;
-		this->status=bindError;
+		this->status=BIND_ERROR;
 		return false;
 	}
 	if(listen(iSocket, 5)==-1)
@@ -68,14 +68,14 @@ bool Server::start()
 			this->writeToLog("Listen error");
 		else
 			std::cout<<"listen error"<<std::endl;
-		this->status=listenError;
+		this->status=LISTEN_ERROR;
 		return false;
 	}
 	if(this->isLog)
 		writeToLog("Successfully started");
 	else
 		std::cout<<"Successfully started"<<std::endl;
-	this->status=runned;
+	this->status=RUNNED;
 	return true;
 }
 

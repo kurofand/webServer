@@ -22,9 +22,9 @@ int main()
 	sigIntHandler.sa_flags=0;
 	sigaction(SIGINT, &sigIntHandler, NULL);
 	server=new Server();
-	while((!server->start())&&(server->status==1))
+	while((!server->start())&&(server->status==BIND_ERROR))
 		sleep(5);
-	while(server->status==3)
+	while(server->status==RUNNED)
 		server->run();
 	return 0;
 }
