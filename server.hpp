@@ -19,5 +19,5 @@ class Server
 	private:
 		int iSocket;
 		std::string serverRoot, indexFile, logFile;
-		std::string prepareAnswer(std::string *fileName);
+		std::string prepareAnswer(std::string *fileName, bool valid);
 };

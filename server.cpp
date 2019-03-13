@@ -91,38 +91,52 @@ void Server::run()
 		std::string request;
 		ssize_t result=recv(con, &buf, bufSize, NULL);
 		request.append(buf);
-		std::string fileName=request.substr(request.find("/"), request.find("HTTP")-request.find("/")-1);
-		if((fileName=="/")&&(this->indexFile!=""))
-			fileName+=this->indexFile;
-		if(this->serverRoot!="")
-			fileName=serverRoot+fileName;
+		std::string fileName;
 		std::string log="Received \"";
-		log+=request.substr(0, request.find(" HTTP"));
+		std::stringstream response;
+		if(request.find("HTTP")!=std::string::npos)
+		{
+			fileName=request.substr(request.find("/"), request.find("HTTP")-request.find("/")-1);
+			if((fileName=="/")&&(this->indexFile!=""))
+				fileName+=this->indexFile;
+			if(this->serverRoot!="")
+				fileName=serverRoot+fileName;
+			log+=request.substr(0, request.find(" HTTP"));
+			response<<this->prepareAnswer(&fileName, true);
+		}
+		else
+		{
+			log+=request;
+			response<<this->prepareAnswer(nullptr, false);
+		}
 		log+="\" request from ";
 		log+=inet_ntoa(cliAddr.sin_addr);
 		this->writeToLog(log.c_str());
-		std::stringstream response;
-		response<<this->prepareAnswer(&fileName);
 		write(con, response.str().c_str(), response.str().length());
 		close(con);
 	}
 }
 
-std::string Server::prepareAnswer(std::string *fileName)
+std::string Server::prepareAnswer(std::string *fileName, bool valid)
 {
 	std::string response;
-	std::fstream file;
-	file.open(*fileName);
-	if(file.is_open())
+	if(valid)
 	{
-		response="HTTP/1.1 200 OK\r\n\r\n";
-		std::string line;
-		while(getline(file, line))
-			response.append(line+"\n");
-		file.close();
+		std::fstream file;
+		file.open(*fileName);
+		if(file.is_open())
+		{
+			response="HTTP/1.1 200 OK\r\n\r\n";
+			std::string line;
+			while(getline(file, line))
+				response.append(line+"\n");
+			file.close();
+		}
+		else
+			response="HTTP/1.1 404 Not Found\r\n\r\n";
 	}
 	else
-		response="HTTP/1.1 404 Not Found\r\n\r\n";
+		response="HTTP/1.1 400 Bad Request\r\n\r\n";
 	return response;
 }
 
