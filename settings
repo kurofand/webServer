@@ -1,5 +1,5 @@
 #settings file
-server root=~/serverRoot
+server root=/serverRoot
 index file=index.html
 logging=1
-log directory=~/serverLog
+log directory=/serverLog

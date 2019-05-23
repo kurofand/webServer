@@ -1,9 +1,12 @@
 #include <string>
 
-const uint8_t STOPPED=0;
-const uint8_t BIND_ERROR=1;
-const uint8_t LISTEN_ERROR=2;
-const uint8_t RUNNED=3;
+enum class State: uint8_t
+{
+	stopped=0,
+	bindError,
+	listenError,
+	runned
+};
 
 class Server
 {
@@ -14,7 +17,7 @@ class Server
 		bool stop();
 		void writeToLog(const char* line);
 		bool isLog=false;
-		uint8_t status=STOPPED;
+		State status=State::stopped;
 		~Server();
 	private:
 		int iSocket;
