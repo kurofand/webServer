@@ -1,4 +1,5 @@
 #include <string>
+#include <vector>
 
 enum class State: uint8_t
 {
@@ -22,5 +23,6 @@ class Server
 	private:
 		int iSocket;
 		std::string serverRoot, indexFile, logFile;
-		std::string prepareAnswer(std::string *fileName, bool valid);
+		std::string prepareAnswer(std::string *fileName, uint16_t statusCode);
+		std::vector<std::string> blackList;
 };

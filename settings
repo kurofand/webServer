@@ -3,3 +3,11 @@ server root=/serverRoot
 index file=index.html
 logging=1
 log directory=/serverLog
+#black list can ban ip
+#for example
+#black list=
+#127.0.0.1
+#192.168.*
+#will ban localhost and all adresses under 192.168
+black list=
+192.168.*

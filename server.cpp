@@ -15,9 +15,21 @@
 
 #define port 80
 
+struct readingMultiple
+{
+	std::string name;
+	bool reading=false;
+};
+
 std::string returnVal(std::string line)
 {
 	return line.substr(line.rfind("=")+1, std::string::npos);
+}
+
+void turnFalse(bool a)
+{
+	if(a)
+		a=!a;
 }
 
 Server::Server()
@@ -28,17 +40,37 @@ Server::Server()
 	if(settingsFile.is_open())
 	{
 		std::string line;
+		readingMultiple rMultiple;
 		while(getline(settingsFile, line))
 			if(line[0]!='#')
 			{
 				if(line.find("server root")!=std::string::npos)
+				{
 					this->serverRoot=returnVal(line);
+					turnFalse(rMultiple.reading);
+				}
 				if(line.find("index file")!=std::string::npos)
+				{
 					this->indexFile=returnVal(line);
+					turnFalse(rMultiple.reading);
+				}
 				if(line.find("logging")!=std::string::npos)
+				{
 					this->isLog=returnVal(line)=="1";
+					turnFalse(rMultiple.reading);
+				}
 				if(line.find("log directory")!=std::string::npos)
+				{
 					this->logFile=returnVal(line)+"/log";
+					turnFalse(rMultiple.reading);
+				}
+				if(line.find("black list")!=std::string::npos)
+				{
+					rMultiple.name="blackList";
+					rMultiple.reading=true;
+				}
+				if(rMultiple.name=="blackList"&&rMultiple.reading)
+					this->blackList.push_back(line);
 			}
 		settingsFile.close();
 	}
@@ -102,12 +134,25 @@ void Server::run()
 			if(this->serverRoot!="")
 				fileName=serverRoot+fileName;
 			log+=request.substr(0, request.find(" HTTP"));
-			response<<this->prepareAnswer(&fileName, true);
+			bool isBanned=false;
+			for(uint32_t i=0;i<blackList.size();i++)
+			{
+				std::string subAddr=(blackList.at(i).find(".*")!=std::string::npos)?blackList.at(i).erase(blackList.at(i).find(".*"), std::string::npos):blackList.at(i);
+				std::string currAddr=inet_ntoa(cliAddr.sin_addr);
+				if(currAddr.find(subAddr)!=std::string::npos)
+				{
+					response<<this->prepareAnswer(nullptr, 403);
+					isBanned=true;
+					break;
+				}
+			}
+			if(!isBanned)
+				response<<this->prepareAnswer(&fileName, 200);
 		}
 		else
 		{
 			log+=request;
-			response<<this->prepareAnswer(nullptr, false);
+			response<<this->prepareAnswer(nullptr, 400);
 		}
 		log+="\" request from ";
 		log+=inet_ntoa(cliAddr.sin_addr);
@@ -117,26 +162,38 @@ void Server::run()
 	}
 }
 
-std::string Server::prepareAnswer(std::string *fileName, bool valid)
+std::string Server::prepareAnswer(std::string *fileName, uint16_t statusCode)
 {
 	std::string response;
-	if(valid)
+	switch(statusCode)
 	{
-		std::fstream file;
-		file.open(*fileName);
-		if(file.is_open())
+		case 200:
 		{
-			response="HTTP/1.1 200 OK\r\n\r\n";
-			std::string line;
-			while(getline(file, line))
-				response.append(line+"\n");
-			file.close();
+			std::fstream file;
+			file.open(*fileName);
+			if(file.is_open())
+			{
+				response="HTTP/1.1 200 OK\r\n\r\n";
+				std::string line;
+				while(getline(file, line))
+					response.append(line+"\n");
+				file.close();
+			}
+			else
+				response="HTTP/1.1 404 Not Found\r\n\r\n";
+			break;
 		}
-		else
-			response="HTTP/1.1 404 Not Found\r\n\r\n";
+		case 400:
+		{
+			response="HTTP/1.1 400 Bad Request\r\n\r\n";
+			break;
+		}
+		case 403:
+		{
+			response="HTTP/1.1 403 Forbidden\r\n\r\n";
+			break;
+		}
 	}
-	else
-		response="HTTP/1.1 400 Bad Request\r\n\r\n";
 	return response;
 }
 
