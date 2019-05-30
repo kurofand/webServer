@@ -1,4 +1,5 @@
-#include "server.cpp"
+#include "server.hpp"
+#include <unistd.h>
 #include <signal.h>
 
 Server *server;
