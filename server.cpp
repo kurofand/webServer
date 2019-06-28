@@ -34,7 +34,7 @@ void turnFalse(bool a)
 
 Server::Server()
 {
-	iSocket=socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+	iSocket=socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	std::fstream settingsFile;
 	settingsFile.open("settings");
 	if(settingsFile.is_open())
